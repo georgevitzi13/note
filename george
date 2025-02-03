@@ -2,118 +2,114 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.List;
-import model.TriviaInfo;
-import model.trivia.TriviaResult;
-import service.TriviaAPIService;
-import exception.TriviaAPIException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-public class TriviaGameGUI {
-    private JFrame frame;
-    private JPanel panel;
+// Κύριο Παράθυρο Παιχνιδιού
+public class GameFrame extends JFrame {
+    private CardLayout cardLayout;
+    private JPanel mainPanel;
+    
+    public GameFrame() {
+        setTitle("Παιχνίδι Γνώσεων");
+        setSize(600, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        
+        cardLayout = new CardLayout();
+        mainPanel = new JPanel(cardLayout);
+        
+        StartPanel startPanel = new StartPanel(this);
+        QuestionPanel questionPanel = new QuestionPanel(this);
+        
+        mainPanel.add(startPanel, "Start");
+        mainPanel.add(questionPanel, "Question");
+        
+        add(mainPanel);
+        
+        setVisible(true);
+    }
+    
+    public void showPanel(String name) {
+        cardLayout.show(mainPanel, name);
+    }
+    
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(GameFrame::new);
+    }
+}
+
+// Οθόνη Έναρξης
+class StartPanel extends JPanel {
+    public StartPanel(GameFrame frame) {
+        setLayout(new BorderLayout());
+        JLabel titleLabel = new JLabel("Καλώς ήρθατε στο Παιχνίδι Γνώσεων!", JLabel.CENTER);
+        JButton startButton = new JButton("Έναρξη Παιχνιδιού");
+        
+        startButton.addActionListener(e -> frame.showPanel("Question"));
+        
+        add(titleLabel, BorderLayout.CENTER);
+        add(startButton, BorderLayout.SOUTH);
+    }
+}
+
+// Οθόνη Ερωτήσεων
+class QuestionPanel extends JPanel {
     private JLabel questionLabel;
-    private JButton[] answerButtons;
-    private JButton nextButton;
-    private int score = 0;
-    private int maxScore = 0;
-    private int questionIndex = 0;
-    private List<TriviaInfo> questions;
-    private static final String API_URL = "https://opentdb.com";
-
-    public TriviaGameGUI(List<TriviaInfo> questions) {
-        this.questions = questions;
-        frame = new JFrame("Trivia Game");
-        panel = new JPanel();
-        panel.setLayout(new GridLayout(6, 1));
+    private JButton trueButton, falseButton;
+    
+    public QuestionPanel(GameFrame frame) {
+        setLayout(new BorderLayout());
+        questionLabel = new JLabel("Φόρτωση ερώτησης...");
+        trueButton = new JButton("Σωστό");
+        falseButton = new JButton("Λάθος");
         
-        questionLabel = new JLabel("Question will appear here", SwingConstants.CENTER);
-        panel.add(questionLabel);
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(trueButton);
+        buttonPanel.add(falseButton);
         
-        answerButtons = new JButton[4];
-        for (int i = 0; i < 4; i++) {
-            answerButtons[i] = new JButton();
-            answerButtons[i].addActionListener(new AnswerListener(i));
-            panel.add(answerButtons[i]);
-        }
-        
-        nextButton = new JButton("Next Question");
-        nextButton.addActionListener(e -> nextQuestion());
-        panel.add(nextButton);
-        
-        frame.add(panel);
-        frame.setSize(400, 300);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setVisible(true);
+        add(questionLabel, BorderLayout.CENTER);
+        add(buttonPanel, BorderLayout.SOUTH);
         
         loadQuestion();
     }
     
     private void loadQuestion() {
-        if (questionIndex >= questions.size()) {
-            JOptionPane.showMessageDialog(frame, "Game Over! Your score: " + score);
-            if (score > maxScore) {
-                maxScore = score;
-                JOptionPane.showMessageDialog(frame, "New High Score: " + maxScore);
-            }
-            score = 0;
-            questionIndex = 0;
-            return;
-        }
-        
-        TriviaInfo currentQuestion = questions.get(questionIndex);
-        questionLabel.setText(currentQuestion.getQuestion());
-        List<String> answers = currentQuestion.getIncorrectAnswers();
-        answers.add(currentQuestion.getCorrectAnswer());
-        java.util.Collections.shuffle(answers);
-        
-        for (int i = 0; i < 4; i++) {
-            if (i < answers.size()) {
-                answerButtons[i].setText(answers.get(i));
-                answerButtons[i].setEnabled(true);
-            } else {
-                answerButtons[i].setText("");
-                answerButtons[i].setEnabled(false);
-            }
-        }
-    }
-    
-    private class AnswerListener implements ActionListener {
-        private int buttonIndex;
-        
-        public AnswerListener(int index) {
-            this.buttonIndex = index;
-        }
-        
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            TriviaInfo currentQuestion = questions.get(questionIndex);
-            if (answerButtons[buttonIndex].getText().equals(currentQuestion.getCorrectAnswer())) {
-                score += 10;
-                JOptionPane.showMessageDialog(frame, "Correct!");
-            } else {
-                score -= 5;
-                JOptionPane.showMessageDialog(frame, "Wrong!");
-            }
-            questionIndex++;
-            loadQuestion();
-        }
-    }
-    
-    private void nextQuestion() {
-        questionIndex++;
-        loadQuestion();
-    }
-    
-    public static void main(String[] args) {
-        TriviaAPIService apiService = new TriviaAPIService(API_URL);
-        List<TriviaInfo> questions;
         try {
-            questions = apiService.getQuestions(5); // Fetch 5 questions from API
-        } catch (TriviaAPIException e) {
-            JOptionPane.showMessageDialog(null, "Error fetching questions: " + e.getMessage());
-            return;
+            String response = TriviaAPI.fetchQuestion();
+            JSONObject json = new JSONObject(response);
+            JSONArray results = json.getJSONArray("results");
+            if (results.length() > 0) {
+                JSONObject questionObj = results.getJSONObject(0);
+                String questionText = questionObj.getString("question");
+                questionLabel.setText(questionText);
+            }
+        } catch (Exception e) {
+            questionLabel.setText("Αποτυχία φόρτωσης ερώτησης");
         }
+    }
+}
+
+// Κλάση για ανάκτηση ερωτήσεων από το Trivia API
+class TriviaAPI {
+    public static String fetchQuestion() throws Exception {
+        URL url = new URL("https://opentdb.com/api.php?amount=1&type=boolean");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
         
-        SwingUtilities.invokeLater(() -> new TriviaGameGUI(questions));
+        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        String inputLine;
+        StringBuilder content = new StringBuilder();
+        while ((inputLine = in.readLine()) != null) {
+            content.append(inputLine);
+        }
+        in.close();
+        conn.disconnect();
+        
+        return content.toString();
     }
 }
