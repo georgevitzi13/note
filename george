@@ -1,0 +1,119 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
+import model.TriviaInfo;
+import model.trivia.TriviaResult;
+import service.TriviaAPIService;
+import exception.TriviaAPIException;
+
+public class TriviaGameGUI {
+    private JFrame frame;
+    private JPanel panel;
+    private JLabel questionLabel;
+    private JButton[] answerButtons;
+    private JButton nextButton;
+    private int score = 0;
+    private int maxScore = 0;
+    private int questionIndex = 0;
+    private List<TriviaInfo> questions;
+    private static final String API_URL = "https://opentdb.com";
+
+    public TriviaGameGUI(List<TriviaInfo> questions) {
+        this.questions = questions;
+        frame = new JFrame("Trivia Game");
+        panel = new JPanel();
+        panel.setLayout(new GridLayout(6, 1));
+        
+        questionLabel = new JLabel("Question will appear here", SwingConstants.CENTER);
+        panel.add(questionLabel);
+        
+        answerButtons = new JButton[4];
+        for (int i = 0; i < 4; i++) {
+            answerButtons[i] = new JButton();
+            answerButtons[i].addActionListener(new AnswerListener(i));
+            panel.add(answerButtons[i]);
+        }
+        
+        nextButton = new JButton("Next Question");
+        nextButton.addActionListener(e -> nextQuestion());
+        panel.add(nextButton);
+        
+        frame.add(panel);
+        frame.setSize(400, 300);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setVisible(true);
+        
+        loadQuestion();
+    }
+    
+    private void loadQuestion() {
+        if (questionIndex >= questions.size()) {
+            JOptionPane.showMessageDialog(frame, "Game Over! Your score: " + score);
+            if (score > maxScore) {
+                maxScore = score;
+                JOptionPane.showMessageDialog(frame, "New High Score: " + maxScore);
+            }
+            score = 0;
+            questionIndex = 0;
+            return;
+        }
+        
+        TriviaInfo currentQuestion = questions.get(questionIndex);
+        questionLabel.setText(currentQuestion.getQuestion());
+        List<String> answers = currentQuestion.getIncorrectAnswers();
+        answers.add(currentQuestion.getCorrectAnswer());
+        java.util.Collections.shuffle(answers);
+        
+        for (int i = 0; i < 4; i++) {
+            if (i < answers.size()) {
+                answerButtons[i].setText(answers.get(i));
+                answerButtons[i].setEnabled(true);
+            } else {
+                answerButtons[i].setText("");
+                answerButtons[i].setEnabled(false);
+            }
+        }
+    }
+    
+    private class AnswerListener implements ActionListener {
+        private int buttonIndex;
+        
+        public AnswerListener(int index) {
+            this.buttonIndex = index;
+        }
+        
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            TriviaInfo currentQuestion = questions.get(questionIndex);
+            if (answerButtons[buttonIndex].getText().equals(currentQuestion.getCorrectAnswer())) {
+                score += 10;
+                JOptionPane.showMessageDialog(frame, "Correct!");
+            } else {
+                score -= 5;
+                JOptionPane.showMessageDialog(frame, "Wrong!");
+            }
+            questionIndex++;
+            loadQuestion();
+        }
+    }
+    
+    private void nextQuestion() {
+        questionIndex++;
+        loadQuestion();
+    }
+    
+    public static void main(String[] args) {
+        TriviaAPIService apiService = new TriviaAPIService(API_URL);
+        List<TriviaInfo> questions;
+        try {
+            questions = apiService.getQuestions(5); // Fetch 5 questions from API
+        } catch (TriviaAPIException e) {
+            JOptionPane.showMessageDialog(null, "Error fetching questions: " + e.getMessage());
+            return;
+        }
+        
+        SwingUtilities.invokeLater(() -> new TriviaGameGUI(questions));
+    }
+}
