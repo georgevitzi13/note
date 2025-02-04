@@ -1,115 +1,190 @@
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import org.json.JSONArray;
-import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
 
-// Κύριο Παράθυρο Παιχνιδιού
-public class GameFrame extends JFrame {
-    private CardLayout cardLayout;
-    private JPanel mainPanel;
-    
-    public GameFrame() {
-        setTitle("Παιχνίδι Γνώσεων");
-        setSize(600, 400);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        
-        cardLayout = new CardLayout();
-        mainPanel = new JPanel(cardLayout);
-        
-        StartPanel startPanel = new StartPanel(this);
-        QuestionPanel questionPanel = new QuestionPanel(this);
-        
-        mainPanel.add(startPanel, "Start");
-        mainPanel.add(questionPanel, "Question");
-        
-        add(mainPanel);
-        
-        setVisible(true);
+class Question {
+    private String questionText;
+    private List<String> options;
+    private int correctAnswerIndex;
+
+    public Question(String questionText, List<String> options, int correctAnswerIndex) {
+        this.questionText = questionText;
+        this.options = options;
+        this.correctAnswerIndex = correctAnswerIndex;
     }
-    
-    public void showPanel(String name) {
-        cardLayout.show(mainPanel, name);
+
+    public String getQuestionText() {
+        return questionText;
     }
-    
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(GameFrame::new);
+
+    public List<String> getOptions() {
+        return options;
+    }
+
+    public int getCorrectAnswerIndex() {
+        return correctAnswerIndex;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(questionText).append("\n");
+        for (int i = 0; i < options.size(); i++) {
+            sb.append((i + 1)).append(". ").append(options.get(i)).append("\n");
+        }
+        return sb.toString();
     }
 }
 
-// Οθόνη Έναρξης
-class StartPanel extends JPanel {
-    public StartPanel(GameFrame frame) {
-        setLayout(new BorderLayout());
-        JLabel titleLabel = new JLabel("Καλώς ήρθατε στο Παιχνίδι Γνώσεων!", JLabel.CENTER);
-        JButton startButton = new JButton("Έναρξη Παιχνιδιού");
-        
-        startButton.addActionListener(e -> frame.showPanel("Question"));
-        
-        add(titleLabel, BorderLayout.CENTER);
-        add(startButton, BorderLayout.SOUTH);
-    }
-}
+class QuizGame {
+    private List<Question> questions;
+    private int score;
 
-// Οθόνη Ερωτήσεων
-class QuestionPanel extends JPanel {
-    private JLabel questionLabel;
-    private JButton trueButton, falseButton;
-    
-    public QuestionPanel(GameFrame frame) {
-        setLayout(new BorderLayout());
-        questionLabel = new JLabel("Φόρτωση ερώτησης...");
-        trueButton = new JButton("Σωστό");
-        falseButton = new JButton("Λάθος");
-        
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(trueButton);
-        buttonPanel.add(falseButton);
-        
-        add(questionLabel, BorderLayout.CENTER);
-        add(buttonPanel, BorderLayout.SOUTH);
-        
-        loadQuestion();
+    public QuizGame() {
+        this.questions = new ArrayList<>();
+        this.score = 0;
     }
-    
-    private void loadQuestion() {
+
+    // Μέθοδος για να τραβήξουμε τις ερωτήσεις από την Trivia API
+    public void fetchQuestionsFromTriviaAPI() {
         try {
-            String response = TriviaAPI.fetchQuestion();
-            JSONObject json = new JSONObject(response);
-            JSONArray results = json.getJSONArray("results");
-            if (results.length() > 0) {
-                JSONObject questionObj = results.getJSONObject(0);
-                String questionText = questionObj.getString("question");
-                questionLabel.setText(questionText);
+            // URL API που παρέχει τις ερωτήσεις (π.χ. Open Trivia DB API)
+            URL url = new URL("https://opentdb.com/api.php?amount=5&type=multiple"); // Παράδειγμα URL
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            String inputLine;
+            StringBuffer response = new StringBuffer();
+
+            while ((inputLine = in.readLine()) != null) {
+                response.append(inputLine);
             }
+            in.close();
+
+            // Ανάλυση του JSON απαντητικού
+            JSONObject jsonResponse = new JSONObject(response.toString());
+            JSONArray results = jsonResponse.getJSONArray("results");
+
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject questionJSON = results.getJSONObject(i);
+                String questionText = questionJSON.getString("question");
+                JSONArray incorrectAnswers = questionJSON.getJSONArray("incorrect_answers");
+                String correctAnswer = questionJSON.getString("correct_answer");
+
+                List<String> options = new ArrayList<>();
+                options.add(correctAnswer);
+                for (int j = 0; j < incorrectAnswers.length(); j++) {
+                    options.add(incorrectAnswers.getString(j));
+                }
+
+                // Ανακατεύουμε τις επιλογές για να είναι τυχαία
+                java.util.Collections.shuffle(options);
+
+                int correctAnswerIndex = options.indexOf(correctAnswer);
+                questions.add(new Question(questionText, options, correctAnswerIndex));
+            }
+
         } catch (Exception e) {
-            questionLabel.setText("Αποτυχία φόρτωσης ερώτησης");
+            System.out.println("Σφάλμα κατά την ανάκτηση των ερωτήσεων: " + e.getMessage());
         }
+    }
+
+    public void displayQuestions() {
+        if (questions.isEmpty()) {
+            System.out.println("Δεν υπάρχουν ερωτήσεις για εμφάνιση.\n");
+            return;
+        }
+
+        System.out.println("Λίστα Ερωτήσεων:");
+        for (int i = 0; i < questions.size(); i++) {
+            System.out.println("Ερώτηση " + (i + 1) + ":");
+            System.out.println(questions.get(i));
+        }
+        System.out.println();
+    }
+
+    public void startQuiz(Scanner scanner) {
+        score = 0;
+        if (questions.isEmpty()) {
+            System.out.println("Δεν υπάρχουν ερωτήσεις για το τεστ.\n");
+            return;
+        }
+
+        for (int i = 0; i < questions.size(); i++) {
+            Question q = questions.get(i);
+            System.out.println("Ερώτηση " + (i + 1) + ":");
+            System.out.println(q);
+
+            int answer = -1;
+            while (answer < 1 || answer > 4) {
+                System.out.print("Επιλέξτε την απάντησή σας (1-4): ");
+                if (scanner.hasNextInt()) {
+                    answer = scanner.nextInt();
+                    if (answer < 1 || answer > 4) {
+                        System.out.println("Μη έγκυρη επιλογή. Παρακαλώ επιλέξτε έναν αριθμό μεταξύ 1 και 4.");
+                    }
+                } else {
+                    System.out.println("Παρακαλώ εισάγετε έναν έγκυρο αριθμό.");
+                    scanner.next(); // Clear invalid input
+                }
+            }
+
+            if (answer - 1 == q.getCorrectAnswerIndex()) {
+                System.out.println("Σωστά!\n");
+                score++;
+            } else {
+                System.out.println("Λάθος! Η σωστή απάντηση ήταν: " + (q.getCorrectAnswerIndex() + 1) + "\n");
+            }
+        }
+
+        System.out.println("Τέλος του τεστ! Η τελική σας βαθμολογία είναι: " + score + "/" + questions.size() + "\n");
     }
 }
 
-// Κλάση για ανάκτηση ερωτήσεων από το Trivia API
-class TriviaAPI {
-    public static String fetchQuestion() throws Exception {
-        URL url = new URL("https://opentdb.com/api.php?amount=1&type=boolean");
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("GET");
-        
-        BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-        String inputLine;
-        StringBuilder content = new StringBuilder();
-        while ((inputLine = in.readLine()) != null) {
-            content.append(inputLine);
+public class QuizGameApp {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        QuizGame quizGame = new QuizGame();
+
+        System.out.println("Καλώς ήρθατε στο Παιχνίδι Ερωτήσεων!");
+
+        while (true) {
+            try {
+                System.out.println("1. Τράβηγμα Ερωτήσεων από Trivia API");
+                System.out.println("2. Προβολή Ερωτήσεων");
+                System.out.println("3. Έναρξη Τεστ");
+                System.out.println("4. Έξοδος");
+                System.out.print("Επιλέξτε μία επιλογή: ");
+
+                int choice = scanner.nextInt();
+                scanner.nextLine(); // Καθαρισμός νέας γραμμής
+
+                if (choice == 1) {
+                    quizGame.fetchQuestionsFromTriviaAPI();
+                } else if (choice == 2) {
+                    quizGame.displayQuestions();
+                } else if (choice == 3) {
+                    quizGame.startQuiz(scanner);
+                } else if (choice == 4) {
+                    System.out.println("Εξοδος από το παιχνίδι. Αντίο!");
+                    break;
+                } else {
+                    System.out.println("Μη έγκυρη επιλογή, παρακαλώ προσπαθήστε ξανά.");
+                }
+            } catch (Exception e) {
+                System.out.println("Σφάλμα: " + e.getMessage());
+                scanner.nextLine(); // Clear the buffer in case of invalid input
+            }
         }
-        in.close();
-        conn.disconnect();
-        
-        return content.toString();
+
+        scanner.close();
     }
 }
