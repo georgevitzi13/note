@@ -5,9 +5,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 class Question {
     private String questionText;
@@ -46,17 +44,20 @@ class Question {
 class QuizGame {
     private List<Question> questions;
     private int score;
+    private int maxScore;
 
     public QuizGame() {
         this.questions = new ArrayList<>();
         this.score = 0;
+        this.maxScore = 0;
     }
 
-    // Μέθοδος για να τραβήξουμε τις ερωτήσεις από την Trivia API
-    public void fetchQuestionsFromTriviaAPI() {
+    // Μέθοδος για να τραβήξουμε τις ερωτήσεις από την Trivia API με τις παραμέτρους του χρήστη
+    public void fetchQuestionsFromTriviaAPI(String category, String type, String difficulty, int questionCount) {
         try {
-            // URL API που παρέχει τις ερωτήσεις (π.χ. Open Trivia DB API)
-            URL url = new URL("https://opentdb.com/api.php?amount=5&type=multiple"); // Παράδειγμα URL
+            String urlString = String.format("https://opentdb.com/api.php?amount=%d&category=%s&type=%s&difficulty=%s", 
+                questionCount, category, type, difficulty);
+            URL url = new URL(urlString);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
 
@@ -139,13 +140,46 @@ class QuizGame {
 
             if (answer - 1 == q.getCorrectAnswerIndex()) {
                 System.out.println("Σωστά!\n");
-                score++;
+                score += 10; // Αύξηση του σκορ με 10 για σωστή απάντηση
             } else {
                 System.out.println("Λάθος! Η σωστή απάντηση ήταν: " + (q.getCorrectAnswerIndex() + 1) + "\n");
+                score -= 5; // Μείωση του σκορ με 5 για λάθος απάντηση
             }
         }
 
-        System.out.println("Τέλος του τεστ! Η τελική σας βαθμολογία είναι: " + score + "/" + questions.size() + "\n");
+        System.out.println("Τέλος του τεστ! Η τελική σας βαθμολογία είναι: " + score + "/" + questions.size() * 10);
+        
+        // Αν είναι το νέο σκορ μεγαλύτερο από το μέγιστο σκορ, το ενημερώνουμε
+        if (score > maxScore) {
+            maxScore = score;
+            System.out.println("Συγχαρητήρια! Επίτευξες νέο υψηλότερο σκορ: " + maxScore);
+        }
+
+        System.out.println("Το υψηλότερο σκορ σας είναι: " + maxScore + "\n");
+    }
+
+    // Μέθοδος για να αρχικοποιήσει το παιχνίδι με παραμέτρους
+    public void initializeGame(Scanner scanner) {
+        System.out.println("Επιλογές παραμέτρων παιχνιδιού:");
+        System.out.print("Εισάγετε την κατηγορία (π.χ. 9 για General Knowledge): ");
+        String category = scanner.nextLine();
+
+        System.out.print("Επιλέξτε τον τύπο (multiple ή boolean): ");
+        String type = scanner.nextLine();
+
+        System.out.print("Επιλέξτε την δυσκολία (easy, medium, hard): ");
+        String difficulty = scanner.nextLine();
+
+        System.out.print("Πόσες ερωτήσεις θέλεις; ");
+        int questionCount = scanner.nextInt();
+        scanner.nextLine(); // Clear buffer
+
+        // Ανακτούμε τις ερωτήσεις από το Trivia API
+        fetchQuestionsFromTriviaAPI(category, type, difficulty, questionCount);
+    }
+
+    public int getMaxScore() {
+        return maxScore;
     }
 }
 
@@ -158,17 +192,17 @@ public class QuizGameApp {
 
         while (true) {
             try {
-                System.out.println("1. Τράβηγμα Ερωτήσεων από Trivia API");
+                System.out.println("1. Νέο παιχνίδι");
                 System.out.println("2. Προβολή Ερωτήσεων");
                 System.out.println("3. Έναρξη Τεστ");
                 System.out.println("4. Έξοδος");
                 System.out.print("Επιλέξτε μία επιλογή: ");
-
+                
                 int choice = scanner.nextInt();
                 scanner.nextLine(); // Καθαρισμός νέας γραμμής
-
+                
                 if (choice == 1) {
-                    quizGame.fetchQuestionsFromTriviaAPI();
+                    quizGame.initializeGame(scanner);
                 } else if (choice == 2) {
                     quizGame.displayQuestions();
                 } else if (choice == 3) {
