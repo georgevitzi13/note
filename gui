@@ -1,0 +1,195 @@
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import java.util.*;
+
+public class QuizGameGUI extends Application {
+
+    private QuizGame quizGame;
+    private Scene mainMenuScene, gameScene, resultScene;
+    private int currentQuestionIndex;
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        quizGame = new QuizGame();
+        currentQuestionIndex = 0;
+
+        // Δημιουργία του κύριου μενού
+        VBox mainMenuLayout = new VBox(10);
+        Button startGameButton = new Button("Έναρξη Παιχνιδιού");
+        Button exitButton = new Button("Έξοδος");
+
+        startGameButton.setOnAction(e -> showGameSettings(primaryStage));
+        exitButton.setOnAction(e -> System.exit(0));
+
+        mainMenuLayout.getChildren().addAll(startGameButton, exitButton);
+        mainMenuScene = new Scene(mainMenuLayout, 300, 200);
+
+        // Δημιουργία ρυθμίσεων παιχνιδιού
+        gameScene = createGameSettingsScene(primaryStage);
+
+        // Σκηνή αποτελεσμάτων
+        resultScene = createResultScene(primaryStage);
+
+        // Ρύθμιση αρχικής σκηνής
+        primaryStage.setTitle("Quiz Game");
+        primaryStage.setScene(mainMenuScene);
+        primaryStage.show();
+    }
+
+    // Δημιουργία σκηνής για τις ρυθμίσεις του παιχνιδιού
+    private Scene createGameSettingsScene(Stage primaryStage) {
+        VBox gameSettingsLayout = new VBox(10);
+        TextField categoryField = new TextField();
+        categoryField.setPromptText("Κατηγορία (π.χ. 9 για General Knowledge)");
+
+        TextField typeField = new TextField();
+        typeField.setPromptText("Τύπος (multiple ή boolean)");
+
+        TextField difficultyField = new TextField();
+        difficultyField.setPromptText("Δυσκολία (easy, medium, hard)");
+
+        TextField questionCountField = new TextField();
+        questionCountField.setPromptText("Αριθμός ερωτήσεων");
+
+        Button startButton = new Button("Έναρξη Παιχνιδιού");
+        startButton.setOnAction(e -> {
+            String category = categoryField.getText();
+            String type = typeField.getText();
+            String difficulty = difficultyField.getText();
+            int questionCount = Integer.parseInt(questionCountField.getText());
+
+            quizGame.fetchQuestionsFromTriviaAPI(category, type, difficulty, questionCount);
+            currentQuestionIndex = 0;
+            showQuestion(primaryStage);
+        });
+
+        gameSettingsLayout.getChildren().addAll(
+                categoryField, typeField, difficultyField, questionCountField, startButton);
+        return new Scene(gameSettingsLayout, 300, 250);
+    }
+
+    // Δημιουργία σκηνής αποτελεσμάτων
+    private Scene createResultScene(Stage primaryStage) {
+        VBox resultLayout = new VBox(10);
+        Label resultLabel = new Label();
+        Button restartButton = new Button("Ξεκινήστε νέο παιχνίδι");
+        Button exitButton = new Button("Έξοδος");
+
+        restartButton.setOnAction(e -> {
+            primaryStage.setScene(gameScene);
+        });
+
+        exitButton.setOnAction(e -> System.exit(0));
+
+        resultLayout.getChildren().addAll(resultLabel, restartButton, exitButton);
+
+        resultLabel.setText("Σκορ: " + quizGame.getMaxScore() + "\nΣυγχαρητήρια!");
+
+        return new Scene(resultLayout, 300, 200);
+    }
+
+    // Εμφάνιση της ερώτησης στο GUI
+    private void showQuestion(Stage primaryStage) {
+        if (currentQuestionIndex >= quizGame.getQuestions().size()) {
+            primaryStage.setScene(resultScene);
+            return;
+        }
+
+        Question question = quizGame.getQuestions().get(currentQuestionIndex);
+        VBox questionLayout = new VBox(10);
+
+        Label questionLabel = new Label(question.getQuestionText());
+        ToggleGroup answerGroup = new ToggleGroup();
+        RadioButton[] radioButtons = new RadioButton[4];
+
+        for (int i = 0; i < 4; i++) {
+            radioButtons[i] = new RadioButton(question.getOptions().get(i));
+            radioButtons[i].setToggleGroup(answerGroup);
+        }
+
+        Button submitButton = new Button("Υποβολή Απάντησης");
+        submitButton.setOnAction(e -> {
+            RadioButton selectedAnswer = (RadioButton) answerGroup.getSelectedToggle();
+            int selectedIndex = Arrays.asList(radioButtons).indexOf(selectedAnswer);
+
+            if (selectedIndex == question.getCorrectAnswerIndex()) {
+                quizGame.incrementScore();
+            }
+
+            currentQuestionIndex++;
+            showQuestion(primaryStage);
+        });
+
+        questionLayout.getChildren().addAll(questionLabel, radioButtons[0], radioButtons[1], radioButtons[2], radioButtons[3], submitButton);
+        gameScene = new Scene(questionLayout, 300, 250);
+        primaryStage.setScene(gameScene);
+    }
+
+    // Μέθοδος για την εμφάνιση της σκηνής των ρυθμίσεων
+    private void showGameSettings(Stage primaryStage) {
+        primaryStage.setScene(gameScene);
+    }
+}
+
+class QuizGame {
+    private List<Question> questions;
+    private int score;
+    private int maxScore;
+
+    public QuizGame() {
+        this.questions = new ArrayList<>();
+        this.score = 0;
+        this.maxScore = 0;
+    }
+
+    public void fetchQuestionsFromTriviaAPI(String category, String type, String difficulty, int questionCount) {
+        // Εδώ καλείς την Trivia API για να πάρεις τις ερωτήσεις (αναλόγως τις παραμέτρους)
+        // Προσθέτω ενδεικτικά μια απλή ερώτηση
+        questions.clear();
+        List<String> options = Arrays.asList("Correct Answer", "Wrong Answer 1", "Wrong Answer 2", "Wrong Answer 3");
+        questions.add(new Question("What is the capital of France?", options, 0));
+    }
+
+    public List<Question> getQuestions() {
+        return questions;
+    }
+
+    public void incrementScore() {
+        score += 10;
+    }
+
+    public int getMaxScore() {
+        return maxScore;
+    }
+}
+
+class Question {
+    private String questionText;
+    private List<String> options;
+    private int correctAnswerIndex;
+
+    public Question(String questionText, List<String> options, int correctAnswerIndex) {
+        this.questionText = questionText;
+        this.options = options;
+        this.correctAnswerIndex = correctAnswerIndex;
+    }
+
+    public String getQuestionText() {
+        return questionText;
+    }
+
+    public List<String> getOptions() {
+        return options;
+    }
+
+    public int getCorrectAnswerIndex() {
+        return correctAnswerIndex;
+    }
+}
