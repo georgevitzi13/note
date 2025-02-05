@@ -1,0 +1,5 @@
+Private void loadQuestions() {
+TriviaAPIService triviaAPIService = new TriviaAPIService ("https://opendb.com");
+Try{
+triviaQuestions = triviaAPIService.getQuestions(10);}
+}
