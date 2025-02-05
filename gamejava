@@ -11,7 +11,7 @@ TriviaAPIService triviaAPIService = new TriviaAPIService ("https://opendb.com");
 Try{
 triviaQuestions = triviaAPIService.getQuestions(10);}
 }
-
+loadQuestions
     public Game(GameSettings settings) {
         this.questions = QuestionAPI.fetchQuestions(settings);
         this.score = 0;
