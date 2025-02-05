@@ -1,0 +1,21 @@
+package ergasia.trivia;
+public class GameSettings {
+    private String category;
+    private String type;
+    private int questionCount;
+    private String difficulty;
+
+    // Constructor
+    public GameSettings(String category, String type, int questionCount, String difficulty) {
+        this.category = category;
+        this.type = type;
+        this.questionCount = questionCount;
+        this.difficulty = difficulty;
+    }
+
+    // Getters
+    public String getCategory() { return category; }
+    public String getType() { return type; }
+    public int getQuestionCount() { return questionCount; }
+    public String getDifficulty() { return difficulty; }
+}
