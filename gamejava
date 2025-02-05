@@ -1,0 +1,44 @@
+package ergasia.trivia;
+import java.util.List;
+import java.util.Scanner;
+
+public class Game {
+    private List<Question> questions;
+    private int score;
+    private int currentIndex;
+
+    public Game(GameSettings settings) {
+        this.questions = QuestionAPI.fetchQuestions(settings);
+        this.score = 0;
+        this.currentIndex = 0;
+    }
+
+    public void start() {
+        Scanner scanner = new Scanner(System.in);
+
+        for (Question question : questions) {
+            System.out.println("\n" + question.getQuestionText());
+            List<String> options = question.getOptions();
+
+            for (int i = 0; i < options.size(); i++) {
+                System.out.println((i + 1) + ". " + options.get(i));
+            }
+
+            System.out.print("Η απάντησή σου: ");
+            int choice = scanner.nextInt();
+            String userAnswer = options.get(choice - 1);
+
+            if (question.isCorrect(userAnswer)) {
+                System.out.println("Σωστό!");
+                score += 10;
+            } else {
+                System.out.println("Λάθος! Η σωστή απάντηση είναι: " + question.getCorrectAnswer());
+                score -= 5;
+            }
+            currentIndex++;
+        }
+
+        System.out.println("\nΤελικό σκορ: " + score);
+        scanner.close();
+    }
+}
